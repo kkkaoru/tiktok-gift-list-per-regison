@@ -4,3 +4,5 @@ coverage/
 .relay/
 cdk.out/
 .cache/
+# Signed-in TikTok session (never commit).
+private/
