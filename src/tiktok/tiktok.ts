@@ -71,6 +71,11 @@ export const gatewayUrl = (endpoint: string, url: string): string => {
   return new URL(`${route}${target.search}`, endpoint).href
 }
 
+// The Cookie header of a signed-in TikTok session (TIKTOK_SESSIONID: the 32 hex digit "sessionid"
+// cookie), or null for anything else, so a malformed value is never sent.
+export const sessionCookie = (sessionId: string | undefined): string | null =>
+  sessionId !== undefined && /^[0-9a-f]{32}$/iu.test(sessionId) ? `sessionid=${sessionId}` : null
+
 export const roomLookupUrl = (uniqueId: string): string =>
   `${ROOM_LOOKUP}?${new URLSearchParams({ aid: AID, sourceType: '54', uniqueId })}`
 
@@ -106,19 +111,29 @@ const toGift = (value: unknown): TikTokGift | null => {
     : null
 }
 
-// The gift tab in panel order, each gift once (the panel repeats a few in several groups).
-export const panelGifts = (body: unknown): readonly TikTokGift[] => {
+const giftTab = (body: unknown): readonly unknown[] => {
   const data = isRecord(body) ? body['data'] : null
   const pages: unknown = isRecord(data) ? data['pages'] : null
   const page: unknown = Array.isArray(pages)
     ? pages.find((entry) => isRecord(entry) && entry['page_type'] === GIFT_PAGE_TYPE)
     : null
   const gifts: unknown = isRecord(page) ? page['gifts'] : null
-  return (Array.isArray(gifts) ? gifts : [])
+  return Array.isArray(gifts) ? gifts : []
+}
+
+const gifts = (entries: readonly unknown[]): readonly TikTokGift[] =>
+  entries
     .map(toGift)
     .filter((gift): gift is TikTokGift => gift !== null)
     .filter((gift, index, all) => all.findIndex((other) => other.giftId === gift.giftId) === index)
-}
+
+// The gift tab in panel order, each gift once (the panel repeats a few in several groups).
+export const panelGifts = (body: unknown): readonly TikTokGift[] => gifts(giftTab(body))
+
+// The gifts the live screen actually offers: those flagged is_displayed_on_panel. TikTok sets the
+// flag only for a signed-in viewer's request; an anonymous list has it false on every gift.
+export const displayedGifts = (body: unknown): readonly TikTokGift[] =>
+  gifts(giftTab(body).filter((entry) => isRecord(entry) && entry['is_displayed_on_panel'] === true))
 
 const missingFrom =
   (gifts: readonly TikTokGift[]) =>

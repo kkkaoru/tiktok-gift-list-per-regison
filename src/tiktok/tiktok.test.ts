@@ -3,12 +3,14 @@ import { expect, test } from 'vitest'
 
 import {
   diffPanels,
+  displayedGifts,
   gatewayUrl,
   giftListUrl,
   panelGifts,
   parseTikTokSource,
   roomIdOf,
   roomLookupUrl,
+  sessionCookie,
 } from './tiktok'
 
 test('reads a @user, its live URL or a room id', () => {
@@ -100,4 +102,35 @@ test('lists the gifts only one of two panels has', () => {
     removed: [{ coins: 1, giftId: '5655', imageUrl: 'https://a/rose.webp', name: 'Rose' }],
   })
   expect(diffPanels([rose], [rose])).toStrictEqual({ added: [], removed: [] })
+})
+
+test('keeps only the gifts the live screen shows', () => {
+  expect(
+    displayedGifts({
+      data: {
+        pages: [
+          {
+            gifts: [
+              { ...gift(2, 'Rose'), is_displayed_on_panel: true },
+              { ...gift(1, 'GG'), is_displayed_on_panel: false },
+              gift(3, 'Star'),
+            ],
+            page_type: 1,
+          },
+        ],
+      },
+    }),
+  ).toStrictEqual([
+    { coins: 1, giftId: '2', imageUrl: 'https://p16-webcast.tiktokcdn.com/2.webp', name: 'Rose' },
+  ])
+  expect(displayedGifts(null)).toStrictEqual([])
+})
+
+test('sends only a well-formed session as a cookie', () => {
+  expect(sessionCookie('0123456789abcdef0123456789ABCDEF')).toBe(
+    'sessionid=0123456789abcdef0123456789ABCDEF',
+  )
+  expect(sessionCookie('0123456789abcdef')).toBe(null)
+  expect(sessionCookie('0123456789abcdef0123456789abcdef; x=1')).toBe(null)
+  expect(sessionCookie(undefined)).toBe(null)
 })
