@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fetch": "bun src/cli/fetch-regions.ts",
+    "fetch": "bun src/cli/fetch.ts",
     "deploy": "bash src/cli/deploy.sh",
     "tsc": "tsc -p tsconfig.json",
     "lint": "oxlint",

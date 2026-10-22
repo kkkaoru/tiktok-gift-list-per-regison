@@ -1,195 +1,250 @@
 // Runs with bun.
-// The per-region report (Markdown): an overview of every region's own gift panel (no stream, names
-// in the region's language) against the base region, then per region the gifts it has that the
-// base region does not, with their atlas images, and optionally one live's panel in the base region. Table rows follow
-// the atlas cells (left to right, top to bottom), see atlasPaths.
+// The report (Markdown): Japan's TikTok LIVE gift list read without and with a signed-in session,
+// for one live (its room) and without a live. Only the signed-in list says which gifts the live
+// screen shows (is_displayed_on_panel), so each comparison lists those, the anonymous gifts the
+// screen does not show, and the report says how the lists are read. Table rows follow the atlas
+// cells (left to right, top to bottom).
 import { GATEWAY_LIMITS } from '../regions/regions'
 import { diffPanels } from '../tiktok/tiktok'
 import type { TikTokGift } from '../tiktok/tiktok'
 
-interface RegionPanel {
+interface AnonymousPanel {
   readonly awsRegion: string
+  readonly fetchedAt: string
   readonly gifts: readonly TikTokGift[]
-  readonly label: string
-  readonly language: string
 }
 
-interface RoomPanel {
+// The signed-in list: only the gifts the live screen shows, and how many the list had.
+interface SignedInPanel {
+  readonly fetchedAt: string
   readonly gifts: readonly TikTokGift[]
+  readonly listed: number
+}
+
+// The live both lists were read for (its room_id).
+interface LiveRoom {
   readonly roomId: string
-  readonly source: string
+  // The live's page, when it was given as a user.
+  readonly url: string | null
+}
+
+// One signed-out / signed-in pair; live null: read without a live.
+interface Comparison {
+  readonly anonymous: AnonymousPanel
+  readonly live: LiveRoom | null
+  readonly signedIn: SignedInPanel
 }
 
 interface ReportInput {
-  readonly base: string
-  readonly fetchedAt: string
-  readonly regions: readonly RegionPanel[]
-  readonly room: RoomPanel | null
+  readonly comparisons: readonly Comparison[]
 }
 
-interface AtlasPaths {
-  readonly added: string
-  readonly all: string
+interface ComparisonPaths {
+  readonly anonymousAtlas: string
+  readonly anonymousJson: string
+  readonly hiddenAtlas: string
+  readonly hiddenCsv: string
+  readonly shownCsv: string
+  readonly signedInAtlas: string
+  readonly signedInJson: string
+  readonly signedInOnlyCsv: string
 }
 
 interface GiftSection {
+  readonly csv: string
   readonly gifts: readonly TikTokGift[]
-  readonly image: string
+  // null: a list without an atlas.
+  readonly image: string | null
   readonly title: string
 }
 
-// Relative to the report: images/<LABEL>.png and images/<LABEL>-added.png.
-export const atlasPaths = (label: string): AtlasPaths => ({
-  added: `images/${label}-added.png`,
-  all: `images/${label}.png`,
-})
+// The language code both lists are read with. Only webcast_language sets the gift names
+// (app_language does not; without it TikTok answers in English); both are sent with this value.
+export const NAME_LANGUAGE: string = 'ja-JP'
 
-export const roomAtlasPath = (name: string): string => `images/room-${name}.png`
+// A comparison's files next to the report: live/ for the live, no-live/ without one.
+export const comparisonPaths = (live: LiveRoom | null): ComparisonPaths => {
+  const folder = live === null ? 'no-live' : 'live'
+  return {
+    anonymousAtlas: `${folder}/anonymous.png`,
+    anonymousJson: `${folder}/anonymous.json`,
+    hiddenAtlas: `${folder}/hidden.png`,
+    hiddenCsv: `${folder}/hidden.csv`,
+    shownCsv: `${folder}/shown.csv`,
+    signedInAtlas: `${folder}/signed-in.png`,
+    signedInJson: `${folder}/signed-in.json`,
+    signedInOnlyCsv: `${folder}/signed-in-only.csv`,
+  }
+}
 
-// How each region's panel is read from that region's IP (no gateway URLs: they stay in .relay/).
-const REGION_SECTION: readonly string[] = [
-  '## 地域（IP）ごとの取得方法',
+const ROOM_QUERY: string = '&room_id=<配信の room（配信を指定するときだけ）>'
+
+// How the anonymous list is read from Japan's IP (no gateway URL: it stays in .relay/).
+const ANONYMOUS_HOW: readonly string[] = [
+  '### ログインなし',
   '',
-  'TikTok はギフト欄の地域を接続元の IP で決めます。そこで AWS の各リージョンに API Gateway（REST API、リージョナル、HTTP プロキシ統合）を 1 つずつ置き、そのリージョンの AWS の IP から TikTok に問い合わせています。',
-  '',
-  '| ゲートウェイのパス | 転送先 |',
-  '| --- | --- |',
-  '| `GET /gift-list` | `https://webcast.tiktok.com/webcast/gift/list/`（ギフト一覧） |',
-  '| `GET /user-room` | `https://www.tiktok.com/api-live/user/room/`（ユーザー名から配信の room を検索） |',
+  'TikTok はギフト欄の地域を接続元の IP で決めます。AWS の東京リージョン（ap-northeast-1）に置いた API Gateway（REST API、HTTP プロキシ統合）を経由し、日本の IP からログインせずに問い合わせています。',
   '',
   '```',
-  'GET <そのリージョンのゲートウェイ>/gift-list?aid=1988&device_platform=web_pc&app_language=ja-JP&webcast_language=ja-JP',
+  `GET <東京リージョンのゲートウェイ>/gift-list?aid=1988&device_platform=web_pc&app_language=${NAME_LANGUAGE}&webcast_language=${NAME_LANGUAGE}${ROOM_QUERY}`,
   'x-api-key: <API キー>',
   '```',
   '',
-  '- クエリ文字列とヘッダー（User-Agent など）はそのまま TikTok に転送されます。`room_id` を付けなければ、その地域の既定のギフト欄になります',
-  `- 呼び出しには API キーが必須で、利用量プランで ${GATEWAY_LIMITS.rate} リクエスト/秒・1 日 ${GATEWAY_LIMITS.daily} リクエストに制限しています。ゲートウェイの URL と API キーは公開していません`,
-  '- 転送先は上の 2 つの URL に固定しています（`{proxy+}` で転送すると API Gateway が末尾の `/` を落とし、TikTok が 301 を返すため）',
-  '- 構築は AWS CDK（`src/cdk/`）で、`AWS_PROFILE=<プロファイル> bun run deploy` で全リージョンにデプロイ、`bun run fetch [@ユーザー名]` で取得します（手順はリポジトリの README）',
-  '- ギフト画像は画像 CDN から直接取得しています（画像は地域で変わらないため）',
+  '- ゲートウェイは `https://webcast.tiktok.com/webcast/gift/list/` に転送します（クエリとヘッダーはそのまま）',
+  '- 配信を指定するときは `room_id` にその配信の room を付けます（その配信を開いたときと同じ一覧）。room はユーザー名から、ゲートウェイの `/user-room`（`https://www.tiktok.com/api-live/user/room/`）で調べます。配信を指定しないときは付けません（特定の配信に依存しない一覧）',
+  `- 呼び出しには API キーが必須で、${GATEWAY_LIMITS.rate} リクエスト/秒・1 日 ${GATEWAY_LIMITS.daily} リクエストに制限しています。ゲートウェイの URL と API キーは公開していません`,
+  '- 構築は AWS CDK（`src/cdk/`）、`AWS_PROFILE=<プロファイル> bun run deploy` でデプロイします',
   '',
 ]
 
-// How the gift names are asked for in a language (the gift set itself follows the caller's IP).
+// How the signed-in list is read (no session values).
+const SIGNED_IN_HOW: readonly string[] = [
+  '### ログインあり',
+  '',
+  'TikTok にログインしたアカウントのセッション Cookie `sessionid`（32 桁の 16 進数）を付けて、同じ一覧を日本の IP（手元）から問い合わせています。',
+  '',
+  '```',
+  `GET https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=${NAME_LANGUAGE}&webcast_language=${NAME_LANGUAGE}${ROOM_QUERY}`,
+  'Cookie: sessionid=<ログイン済みアカウントのセッション>',
+  '```',
+  '',
+  '- ログインありの一覧では、配信画面のギフト欄（下のバーと「More」）に出すギフトだけ `is_displayed_on_panel` が true になります。ログインなしではすべて false です',
+  '- セッションは Git 管理外のファイル（`private/tiktok-sessionid.secret`、権限 0600）から環境変数 `TIKTOK_SESSIONID` に読み込みます。値はログ・結果に書かず、AWS にも送りません',
+  '',
+]
+
+// Which query values change the gift names, as observed on the gift list.
 const LANGUAGE_SECTION: readonly string[] = [
-  '## ギフト名の言語',
+  '## ギフト名の言語コード',
   '',
-  'ギフト一覧 API（`https://webcast.tiktok.com/webcast/gift/list/`）のクエリ `app_language` と `webcast_language` に言語コード（`ja-JP`・`en-US`・`en-GB`・`zh-Hans` など）を指定すると、`name` がその言語で返ります。',
+  'ギフト名（`name`）は、ギフト一覧 API のクエリの言語コードで決まります。この取得では次の値を送っています（ログインなし・ありとも同じ）。',
   '',
-  '```',
-  'https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=ja-JP&webcast_language=ja-JP',
-  '```',
+  '| クエリ | 送った値 | ギフト名への影響 |',
+  '| --- | --- | --- |',
+  `| \`webcast_language\` | \`${NAME_LANGUAGE}\` | ギフト名の言語を決める。省略すると英語になる |`,
+  `| \`app_language\` | \`${NAME_LANGUAGE}\` | ギフト名には影響しない（\`webcast_language\` と同じ値をそろえて送っている） |`,
   '',
-  '- どのギフトが並ぶかは言語ではなく接続元の IP（地域）で決まります。言語コードを変えても giftId の集合は変わらず、名前だけが変わります',
-  '- `region` などの地域パラメーターは無視されます。地域は API Gateway のリージョンで切り替えています',
-  '- 各地域で使う言語コードは `src/regions/regions.ts` の `language` で変更できます（上の概要の「言語」列）',
+  '- 確認例: `webcast_language=ja-JP` では「バラ」「天才」、`en-US` または省略では「Rose」「Genius」。`app_language` だけを変えても名前は変わりません',
+  '- どのギフトが一覧に並ぶか（giftId の集合）は言語コードでは変わらず、接続元の IP で決まります。比較は giftId で行うため、言語コードは差分に影響しません',
+  '- 値は `src/report/report.ts` の `NAME_LANGUAGE` で定義しています',
   '',
 ]
 
-// A table cell: TikTok names can carry line breaks, non-breaking spaces or a pipe, which would
-// split the row (the JSON keeps the name as sent).
-export const tableCell = (text: string): string =>
-  text.replaceAll(/\s+/gu, ' ').trim().replaceAll('|', '\\|')
+const CSV_HEADER: string = 'no,giftId,name,coins,imageUrl'
+
+// RFC 4180: a field with a comma, quote or line break is quoted, quotes doubled (TikTok names can
+// carry line breaks).
+const csvField = (value: string | number): string => {
+  const text = String(value)
+  return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text
+}
+
+const fewerCoins = (a: TikTokGift, b: TikTokGift): number => a.coins - b.coins
+
+// Atlas and CSV order: coins ascending; a stable sort keeps the panel order among equal prices.
+export const byCoins = (gifts: readonly TikTokGift[]): readonly TikTokGift[] =>
+  gifts.toSorted(fewerCoins)
+
+// A gift list as CSV, in the given order (byCoins: the atlas order), with a header row.
+export const giftCsv = (gifts: readonly TikTokGift[]): string =>
+  `${[
+    CSV_HEADER,
+    ...gifts.map((gift, index) =>
+      [index + 1, gift.giftId, gift.name, gift.coins, gift.imageUrl].map(csvField).join(','),
+    ),
+  ].join('\r\n')}\r\n`
 
 // Results folder of a fetch: its date in Japan (where the fetches are run), not in UTC.
 export const resultDate = (fetchedAt: string): string =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date(fetchedAt))
 
-// Folded on GitHub (<details>); the blank lines let the table render inside it.
-const giftTable = (gifts: readonly TikTokGift[]): readonly string[] => [
-  '<details>',
-  `<summary>リスト（${gifts.length} 種類）</summary>`,
-  '',
-  '| # | giftId | 名前 | コイン |',
-  '| ---: | ---: | --- | ---: |',
-  ...gifts.map(
-    (gift, index) => `| ${index + 1} | ${gift.giftId} | ${tableCell(gift.name)} | ${gift.coins} |`,
-  ),
-  '',
-  '</details>',
-]
+// What a comparison was read for.
+export const targetName = (live: LiveRoom | null): string => {
+  if (live === null) {
+    return '配信を指定しない一覧'
+  }
+  return live.url === null
+    ? `配信（room ${live.roomId}）の一覧`
+    : `配信 ${live.url}（room ${live.roomId}）の一覧`
+}
 
-const section = ({ gifts, image, title }: GiftSection): readonly string[] =>
+// The list itself lives in the CSV; the report keeps the count, the atlas and the link.
+const section = ({ csv, gifts, image, title }: GiftSection): readonly string[] =>
   gifts.length === 0
-    ? [`#### ${title}: なし`, '']
+    ? [`### ${title}: なし`, '']
     : [
-        `#### ${title}: ${gifts.length} 種類`,
+        `### ${title}: ${gifts.length} 種類`,
         '',
-        `![${title}](${image})`,
-        '',
-        ...giftTable(gifts),
+        ...(image === null ? [] : [`![${title}](${image})`, '']),
+        `リスト: [${csv}](${csv})`,
         '',
       ]
 
-const overviewRow = (base: RegionPanel, panel: RegionPanel): string => {
-  const { added } = diffPanels(base.gifts, panel.gifts)
-  const shared = panel.gifts.length - added.length
-  return `| ${panel.label} | ${panel.awsRegion} | ${panel.language} | ${panel.gifts.length} | ${shared} | ${added.length} | [一覧](${atlasPaths(panel.label).all}) |`
+// The anonymous gifts the live screen does not show (anonymous order).
+export const hiddenGifts = ({ anonymous, signedIn }: Comparison): readonly TikTokGift[] =>
+  diffPanels(signedIn.gifts, anonymous.gifts).added
+
+// The gifts the live screen shows that the signed-out list lacks.
+export const signedInOnly = ({ anonymous, signedIn }: Comparison): readonly TikTokGift[] =>
+  diffPanels(anonymous.gifts, signedIn.gifts).added
+
+const overviewRows = ({ anonymous, live, signedIn }: Comparison): readonly string[] => {
+  const paths = comparisonPaths(live)
+  return [
+    `| ${targetName(live)} | ログインなし（AWS の API Gateway ${anonymous.awsRegion} 経由） | ${anonymous.gifts.length} | 判別できない（\`is_displayed_on_panel\` がすべて false） | [画像](${paths.anonymousAtlas})・[JSON](${paths.anonymousJson}) |`,
+    `| ${targetName(live)} | ログインあり（セッション Cookie、手元から） | ${signedIn.listed} | ${signedIn.gifts.length} | [画像](${paths.signedInAtlas})・[JSON](${paths.signedInJson}) |`,
+  ]
 }
 
-// Named in this region's language.
-const regionSection = (base: RegionPanel, panel: RegionPanel): readonly string[] => [
-  `### ${panel.label}（${panel.awsRegion}、${panel.language}）`,
-  '',
-  ...section({
-    gifts: diffPanels(base.gifts, panel.gifts).added,
-    image: atlasPaths(panel.label).added,
-    title: `${base.label} になく ${panel.label} にある`,
-  }),
-]
-
-const roomName = (room: RoomPanel): string =>
-  room.source.startsWith('@') ? room.source.slice(1) : `room-${room.roomId}`
-
-const roomSection = (base: RegionPanel, room: RoomPanel | null): readonly string[] => {
-  if (room === null) {
-    return []
-  }
+const comparisonSection = (comparison: Comparison): readonly string[] => {
+  const { anonymous, live, signedIn } = comparison
+  const paths = comparisonPaths(live)
   return [
-    `## 配信 ${room.source}（${base.label}、room ${room.roomId}）`,
+    `## ${targetName(live)}`,
     '',
-    `配信内のギフト欄は ${room.gifts.length} 種類（[一覧](${roomAtlasPath(roomName(room))})）。`,
+    `取得: ログインなし ${anonymous.fetchedAt}、ログインあり ${signedIn.fetchedAt}`,
     '',
     ...section({
-      gifts: diffPanels(base.gifts, room.gifts).added,
-      image: roomAtlasPath(`${roomName(room)}-added`),
-      title: '配信内だけにある',
+      csv: paths.shownCsv,
+      gifts: signedIn.gifts,
+      image: paths.signedInAtlas,
+      title: 'ログインありで配信画面に出るギフト',
+    }),
+    ...section({
+      csv: paths.hiddenCsv,
+      gifts: hiddenGifts(comparison),
+      image: paths.hiddenAtlas,
+      title: 'ログインなしの一覧にあり、ログインありでは配信画面に出ないギフト',
+    }),
+    ...section({
+      csv: paths.signedInOnlyCsv,
+      gifts: signedInOnly(comparison),
+      image: null,
+      title: 'ログインありで配信画面に出て、ログインなしの一覧にないギフト',
     }),
   ]
 }
 
-export const reportMarkdown = ({ base, fetchedAt, regions, room }: ReportInput): string => {
-  const reference = regions.find((panel) => panel.label === base)
-  if (reference === undefined) {
-    throw new Error(`No panel for the base region ${base}`)
-  }
-  const others = regions.filter((panel) => panel !== reference)
-  return [
-    '# TikTok LIVE のギフト欄（地域別）',
+export const reportMarkdown = ({ comparisons }: ReportInput): string =>
+  [
+    '# TikTok LIVE のギフト欄（日本、ログインあり・なしの差）',
     '',
-    `取得 ${fetchedAt}。各地域のギフト欄は、その AWS リージョンの API Gateway から配信を指定せずに取得した一覧（TikTok は接続元の IP で地域を決める）。`,
-    `ギフト名はその地域の言語で、比較は giftId で ${base} を基準にしています。画像はリスト（表・JSON）と同じ順（左上から右へ、行ごと）。`,
+    `日本の IP から取得したギフト一覧を、ログインなしとログインありで比べています（${comparisons.map((comparison) => targetName(comparison.live)).join('、')}）。比較は giftId、ギフト名は \`webcast_language=${NAME_LANGUAGE}\` で取得した日本語です（「ギフト名の言語コード」参照）。リストは CSV（\`no,giftId,name,coins,imageUrl\`）で、CSV と画像はコインの少ない順（同じコインならギフト欄の表示順）、画像は左上から右へ、行ごとです。`,
     '',
     '## 概要',
     '',
-    `| 地域 | AWS リージョン | 言語 | ギフト数 | ${base} と共通 | ${base} になし | 画像 |`,
-    '| --- | --- | --- | ---: | ---: | ---: | --- |',
-    ...regions.map((panel) => overviewRow(reference, panel)),
+    '| 対象 | 取得方法 | API の一覧 | 配信画面に出るギフト | 画像・データ |',
+    '| --- | --- | ---: | ---: | --- |',
+    ...comparisons.flatMap(overviewRows),
     '',
-    ...REGION_SECTION,
+    '配信画面のギフト欄に出るのは、ログインありの一覧で `is_displayed_on_panel` が true のギフトだけです（配信を開いて数えたギフト欄の件数が、その配信を指定したログインありの一覧で true の件数と一致することを確認済み）。ログインなしの一覧には、配信画面に出ないギフトも含まれます。',
+    '',
+    ...comparisons.flatMap(comparisonSection),
+    '## 取得方法',
+    '',
+    ...ANONYMOUS_HOW,
+    ...SIGNED_IN_HOW,
     ...LANGUAGE_SECTION,
-    `## ${base} のギフト一覧（${reference.awsRegion}、${reference.language}）: ${reference.gifts.length} 種類`,
-    '',
-    `![${base} のギフト一覧](${atlasPaths(base).all})`,
-    '',
-    `リストは [regions/${base}.json](regions/${base}.json)（giftId・名前・コイン・画像 URL を画像と同じ順で）。`,
-    '',
-    `## ${base} との差分`,
-    '',
-    ...others.flatMap((panel) => regionSection(reference, panel)),
-    ...roomSection(reference, room),
   ].join('\n')
-}
 
-export { roomName }
-export type { AtlasPaths, RegionPanel, ReportInput, RoomPanel }
+export type { AnonymousPanel, Comparison, LiveRoom, ReportInput, SignedInPanel }
