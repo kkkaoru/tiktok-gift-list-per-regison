@@ -14,7 +14,6 @@
     "synth": "CDK_DEFAULT_ACCOUNT=000000000000 bunx cdk synth -c apiKey=synth-only-placeholder-key"
   },
   "devDependencies": {
-    "@jsquash/oxipng": "2.3.0",
     "@jsquash/png": "3.1.1",
     "@jsquash/webp": "1.5.0",
     "@types/bun": "1.4.3",
