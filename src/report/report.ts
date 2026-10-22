@@ -85,10 +85,16 @@ const LANGUAGE_SECTION: readonly string[] = [
   '',
 ]
 
+// Folded on GitHub (<details>); the blank lines let the table render inside it.
 const giftTable = (gifts: readonly TikTokGift[]): readonly string[] => [
+  '<details>',
+  `<summary>リスト（${gifts.length} 種類）</summary>`,
+  '',
   '| # | giftId | 名前 | コイン |',
   '| ---: | ---: | --- | ---: |',
   ...gifts.map((gift, index) => `| ${index + 1} | ${gift.giftId} | ${gift.name} | ${gift.coins} |`),
+  '',
+  '</details>',
 ]
 
 const section = ({ gifts, image, title }: GiftSection): readonly string[] =>

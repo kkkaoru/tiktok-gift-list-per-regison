@@ -48,6 +48,9 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 
 ![JP のギフト一覧](images/JP.png)
 
+<details>
+<summary>リスト（689 種類）</summary>
+
 | # | giftId | 名前 | コイン |
 | ---: | ---: | --- | ---: |
 | 1 | 12852 | レベルシップ | 1500 |
@@ -740,6 +743,8 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 | 688 | 1347121 | ミルワスのビート | 1 |
 | 689 | 1429010 | ハムサのお守り | 1 |
 
+</details>
+
 ## JP との差分
 
 ### US（us-east-1、en-US）
@@ -747,6 +752,9 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 #### JP になく US にある: 93 種類
 
 ![JP になく US にある](images/US-added.png)
+
+<details>
+<summary>リスト（93 種類）</summary>
 
 | # | giftId | 名前 | コイン |
 | ---: | ---: | --- | ---: |
@@ -845,11 +853,16 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 | 92 | 1428303 | Dinosaur | 25999 |
 | 93 | 1381356 | Keeper of Atlantis | 15000 |
 
+</details>
+
 ### GB（eu-west-2、en-GB）
 
 #### JP になく GB にある: 167 種類
 
 ![JP になく GB にある](images/GB-added.png)
+
+<details>
+<summary>リスト（167 種類）</summary>
 
 | # | giftId | 名前 | コイン |
 | ---: | ---: | --- | ---: |
@@ -1021,11 +1034,16 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 | 166 | 16790 | Dance with me | 1000 |
 | 167 | 165836 | Festival Bracelet | 349 |
 
+</details>
+
 ### SG（ap-southeast-1、en-SG）
 
 #### JP になく SG にある: 53 種類
 
 ![JP になく SG にある](images/SG-added.png)
+
+<details>
+<summary>リスト（53 種類）</summary>
 
 | # | giftId | 名前 | コイン |
 | ---: | ---: | --- | ---: |
@@ -1083,6 +1101,8 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 | 52 | 1402661 | Star Light | 5 |
 | 53 | 10585 | Rendang Chicken | 1 |
 
+</details>
+
 ## 配信 @cassismilk02（JP、room 7699422526320986886）
 
 配信内のギフト欄は 690 種類（[一覧](images/room-cassismilk02.png)）。
@@ -1091,6 +1111,11 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 
 ![配信内だけにある](images/room-cassismilk02-added.png)
 
+<details>
+<summary>リスト（1 種類）</summary>
+
 | # | giftId | 名前 | コイン |
 | ---: | ---: | --- | ---: |
 | 1 | 1256804 | かしすみるく | 1 |
+
+</details>
