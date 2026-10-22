@@ -77,7 +77,7 @@ const LANGUAGE_SECTION: readonly string[] = [
   'ギフト一覧 API（`https://webcast.tiktok.com/webcast/gift/list/`）のクエリ `app_language` と `webcast_language` に言語コード（`ja-JP`・`en-US`・`en-GB`・`zh-Hans` など）を指定すると、`name` がその言語で返ります。',
   '',
   '```',
-  'https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=en-US&webcast_language=en-US',
+  'https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=ja-JP&webcast_language=ja-JP',
   '```',
   '',
   '- どのギフトが並ぶかは言語ではなく接続元の IP（地域）で決まります。言語コードを変えても giftId の集合は変わらず、名前だけが変わります',
