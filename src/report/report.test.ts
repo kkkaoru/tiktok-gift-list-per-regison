@@ -80,15 +80,7 @@ test('reports every region against the base region by giftId', () => {
       '',
       '![JP のギフト一覧](images/JP.png)',
       '',
-      '<details>',
-      '<summary>リスト（2 種類）</summary>',
-      '',
-      '| # | giftId | 名前 | コイン |',
-      '| ---: | ---: | --- | ---: |',
-      '| 1 | 5655 | バラ | 1 |',
-      '| 2 | 7 | ハート | 5 |',
-      '',
-      '</details>',
+      'リストは [regions/JP.json](regions/JP.json)（giftId・名前・コイン・画像 URL を画像と同じ順で）。',
       '',
       '## JP との差分',
       '',
@@ -124,7 +116,7 @@ test('adds the live of the base region', () => {
       room: { gifts: [rose, heart, own], roomId: '77', source: '@cassismilk02' },
     })
       .split('\n')
-      .slice(59),
+      .slice(51),
   ).toStrictEqual([
     '## 配信 @cassismilk02（JP、room 77）',
     '',

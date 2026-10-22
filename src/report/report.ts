@@ -170,7 +170,7 @@ export const reportMarkdown = ({ base, fetchedAt, regions, room }: ReportInput):
     '',
     `![${base} のギフト一覧](${atlasPaths(base).all})`,
     '',
-    ...giftTable(reference.gifts),
+    `リストは [regions/${base}.json](regions/${base}.json)（giftId・名前・コイン・画像 URL を画像と同じ順で）。`,
     '',
     `## ${base} との差分`,
     '',
