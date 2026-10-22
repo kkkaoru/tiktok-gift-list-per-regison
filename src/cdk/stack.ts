@@ -7,7 +7,7 @@ import type { StackProps } from 'aws-cdk-lib'
 import { EndpointType, HttpIntegration, Period, RestApi } from 'aws-cdk-lib/aws-apigateway'
 import type { Construct } from 'constructs'
 
-import { OUTPUT_ENDPOINT } from '../regions/regions'
+import { GATEWAY_LIMITS, OUTPUT_ENDPOINT } from '../regions/regions'
 import { GATEWAY_ROUTES } from '../tiktok/tiktok'
 
 interface GiftListStackProps extends StackProps {
@@ -16,10 +16,6 @@ interface GiftListStackProps extends StackProps {
 
 const STAGE_NAME: string = 'proxy'
 const GET: string = 'GET'
-const RATE_LIMIT: number = 5
-const BURST_LIMIT: number = 10
-// One person's fetches: a few panels per run.
-const DAILY_QUOTA: number = 1000
 
 // HTTP proxy: the query string and headers pass through to the fixed TikTok URL.
 const integration = (url: string): HttpIntegration =>
@@ -38,8 +34,8 @@ export class GiftListStack extends Stack {
     )
     const plan = api.addUsagePlan('UsagePlan', {
       apiStages: [{ stage: api.deploymentStage }],
-      quota: { limit: DAILY_QUOTA, period: Period.DAY },
-      throttle: { burstLimit: BURST_LIMIT, rateLimit: RATE_LIMIT },
+      quota: { limit: GATEWAY_LIMITS.daily, period: Period.DAY },
+      throttle: { burstLimit: GATEWAY_LIMITS.burst, rateLimit: GATEWAY_LIMITS.rate },
     })
     plan.addApiKey(api.addApiKey('ApiKey', { value: props.apiKeyValue }))
     new CfnOutput(this, OUTPUT_ENDPOINT, { value: api.url })

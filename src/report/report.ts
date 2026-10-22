@@ -3,6 +3,7 @@
 // in the region's language) against the base region, then per region the gifts it has that the
 // base region does not, with their atlas images, and optionally one live's panel in the base region. Table rows follow
 // the atlas cells (left to right, top to bottom), see atlasPaths.
+import { GATEWAY_LIMITS } from '../regions/regions'
 import { diffPanels } from '../tiktok/tiktok'
 import type { TikTokGift } from '../tiktok/tiktok'
 
@@ -62,7 +63,7 @@ const REGION_SECTION: readonly string[] = [
   '```',
   '',
   '- クエリ文字列とヘッダー（User-Agent など）はそのまま TikTok に転送されます。`room_id` を付けなければ、その地域の既定のギフト欄になります',
-  '- 呼び出しには API キーが必須で、利用量プランで 5 リクエスト/秒・1 日 1000 リクエストに制限しています。ゲートウェイの URL と API キーは公開していません',
+  `- 呼び出しには API キーが必須で、利用量プランで ${GATEWAY_LIMITS.rate} リクエスト/秒・1 日 ${GATEWAY_LIMITS.daily} リクエストに制限しています。ゲートウェイの URL と API キーは公開していません`,
   '- 転送先は上の 2 つの URL に固定しています（`{proxy+}` で転送すると API Gateway が末尾の `/` を落とし、TikTok が 301 を返すため）',
   '- 構築は AWS CDK（`src/cdk/`）で、`AWS_PROFILE=<プロファイル> bun run deploy` で全リージョンにデプロイ、`bun run fetch [@ユーザー名]` で取得します（手順はリポジトリの README）',
   '- ギフト画像は画像 CDN から直接取得しています（画像は地域で変わらないため）',

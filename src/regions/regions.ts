@@ -1,6 +1,12 @@
 // Runs with bun.
 // The AWS regions the gift panel is read from (one API Gateway each, see src/cdk/), the language
 // of the gift names there, and how the CDK outputs file maps back to them.
+interface GatewayLimits {
+  readonly burst: number
+  readonly daily: number
+  readonly rate: number
+}
+
 interface Region {
   readonly awsRegion: string
   readonly label: string
@@ -13,6 +19,9 @@ export const REGIONS: readonly Region[] = [
   { awsRegion: 'eu-west-2', label: 'GB', language: 'en-GB' },
   { awsRegion: 'ap-southeast-1', label: 'SG', language: 'en-SG' },
 ]
+// The API key's usage plan (requests per second, burst, per day): one person's fetches. Read by
+// the stack and stated in the report.
+export const GATEWAY_LIMITS: GatewayLimits = { burst: 10, daily: 1000, rate: 5 }
 const STACK_PREFIX: string = 'TikTokGiftList-'
 const OUTPUT_ENDPOINT: string = 'Endpoint'
 
@@ -37,4 +46,4 @@ export const parseEndpoints = (outputs: unknown): ReadonlyMap<string, string> =>
   )
 
 export { OUTPUT_ENDPOINT }
-export type { Region }
+export type { GatewayLimits, Region }
