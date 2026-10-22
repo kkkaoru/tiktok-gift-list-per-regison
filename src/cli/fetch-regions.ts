@@ -4,7 +4,7 @@
 // (src/cli/deploy.sh writes .relay/outputs.json and .relay/api-key). Writes results/<date>/:
 //   regions/<REGION>.json  the region's gift panel (giftId, name, coins, image URL, panel order)
 //   rooms/<user>.json      the live's gift panel in JP (only with a live given)
-//   images/*.png           atlases of each panel and of the gifts each region adds / lacks
+//   images/*.png           atlases of each panel and of the gifts each region has that JP lacks
 //   README.md              the comparison against JP (by giftId)
 //   bun src/cli/fetch-regions.ts [@user | live URL | room id]
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -122,12 +122,11 @@ const roomPanel = async (input: string, gateway: Gateway): Promise<RoomPanel> =>
 }
 
 const regionAtlases = (base: RegionPanel, panel: RegionPanel): readonly AtlasFile[] => {
-  const { added, removed } = diffPanels(base.gifts, panel.gifts)
+  const { added } = diffPanels(base.gifts, panel.gifts)
   const paths = atlasPaths(panel.label)
   return [
     { columns: PANEL_COLUMNS, gifts: panel.gifts, path: paths.all },
     { columns: DIFF_COLUMNS, gifts: added, path: paths.added },
-    { columns: DIFF_COLUMNS, gifts: removed, path: paths.removed },
   ]
 }
 
@@ -135,12 +134,11 @@ const roomAtlases = (base: RegionPanel, room: RoomPanel | null): readonly AtlasF
   if (room === null) {
     return []
   }
-  const { added, removed } = diffPanels(base.gifts, room.gifts)
+  const { added } = diffPanels(base.gifts, room.gifts)
   const name = roomName(room)
   return [
     { columns: PANEL_COLUMNS, gifts: room.gifts, path: roomAtlasPath(name) },
     { columns: DIFF_COLUMNS, gifts: added, path: roomAtlasPath(`${name}-added`) },
-    { columns: DIFF_COLUMNS, gifts: removed, path: roomAtlasPath(`${name}-removed`) },
   ]
 }
 

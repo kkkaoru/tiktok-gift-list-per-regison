@@ -15,7 +15,6 @@ test('names the atlas images next to the report', () => {
   expect(atlasPaths('US')).toStrictEqual({
     added: 'images/US-added.png',
     all: 'images/US.png',
-    removed: 'images/US-removed.png',
   })
   expect(roomAtlasPath('cassismilk02')).toBe('images/room-cassismilk02.png')
   expect(roomName({ gifts: [], roomId: '7', source: '@a' })).toBe('a')
@@ -39,11 +38,11 @@ test('reports every region against the base region by giftId', () => {
       '',
       '## 概要',
       '',
-      '| 地域 | AWS リージョン | 言語 | ギフト数 | JP と共通 | JP になし | この地域になし | 画像 |',
-      '| --- | --- | --- | ---: | ---: | ---: | ---: | --- |',
-      '| JP | ap-northeast-1 | ja-JP | 2 | 2 | 0 | 0 | [一覧](images/JP.png) |',
-      '| US | us-east-1 | en-US | 2 | 1 | 1 | 1 | [一覧](images/US.png) |',
-      '| GB | us-east-1 | en-GB | 2 | 2 | 0 | 0 | [一覧](images/GB.png) |',
+      '| 地域 | AWS リージョン | 言語 | ギフト数 | JP と共通 | JP になし | 画像 |',
+      '| --- | --- | --- | ---: | ---: | ---: | --- |',
+      '| JP | ap-northeast-1 | ja-JP | 2 | 2 | 0 | [一覧](images/JP.png) |',
+      '| US | us-east-1 | en-US | 2 | 1 | 1 | [一覧](images/US.png) |',
+      '| GB | us-east-1 | en-GB | 2 | 2 | 0 | [一覧](images/GB.png) |',
       '',
       '## JP との差分',
       '',
@@ -57,19 +56,9 @@ test('reports every region against the base region by giftId', () => {
       '| ---: | ---: | --- | ---: |',
       '| 1 | 6064 | GG | 1 |',
       '',
-      '#### JP にあり US にない（名前は ja-JP）: 1 種類',
-      '',
-      '![JP にあり US にない（名前は ja-JP）](images/US-removed.png)',
-      '',
-      '| # | giftId | 名前 | コイン |',
-      '| ---: | ---: | --- | ---: |',
-      '| 1 | 7 | ハート | 5 |',
-      '',
       '### GB（us-east-1、en-GB）',
       '',
       '#### JP になく GB にある: なし',
-      '',
-      '#### JP にあり GB にない（名前は ja-JP）: なし',
       '',
     ].join('\n'),
   )
@@ -88,7 +77,7 @@ test('adds the live of the base region', () => {
   ).toStrictEqual([
     '## 配信 @cassismilk02（JP、room 77）',
     '',
-    '配信内のギフト欄は 3 種類（[一覧](images/room-cassismilk02.png)）。JP のギフト欄との差:',
+    '配信内のギフト欄は 3 種類（[一覧](images/room-cassismilk02.png)）。',
     '',
     '#### 配信内だけにある: 1 種類',
     '',
@@ -97,8 +86,6 @@ test('adds the live of the base region', () => {
     '| # | giftId | 名前 | コイン |',
     '| ---: | ---: | --- | ---: |',
     '| 1 | 9 | Own | 1 |',
-    '',
-    '#### 配信内にない: なし',
     '',
   ])
 })
