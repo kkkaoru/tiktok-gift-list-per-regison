@@ -36,9 +36,9 @@ const live = {
 
 test('writes a gift list as CSV, quoting what would break a row', () => {
   expect(giftCsv([rose, own, { ...heart, name: 'A, "B"' }])).toBe(
-    'no,giftId,name,coins,imageUrl\r\n1,5655,バラ,1,https://a/rose.webp\r\n2,9,"Own\n",1,https://a/own.webp\r\n3,7,"A, ""B""",5,https://a/heart.webp\r\n',
+    'no,giftId,name,coins,imageUrl\n1,5655,バラ,1,https://a/rose.webp\n2,9,"Own\n",1,https://a/own.webp\n3,7,"A, ""B""",5,https://a/heart.webp\n',
   )
-  expect(giftCsv([])).toBe('no,giftId,name,coins,imageUrl\r\n')
+  expect(giftCsv([])).toBe('no,giftId,name,coins,imageUrl\n')
 })
 
 test('orders by coins, keeping the panel order among equal prices', () => {

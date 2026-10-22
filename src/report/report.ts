@@ -132,8 +132,8 @@ const LANGUAGE_SECTION: readonly string[] = [
 
 const CSV_HEADER: string = 'no,giftId,name,coins,imageUrl'
 
-// RFC 4180: a field with a comma, quote or line break is quoted, quotes doubled (TikTok names can
-// carry line breaks).
+// RFC 4180 quoting with LF rows (the repo's hooks reject CR): a field with a comma, quote or
+// line break (TikTok names can carry one) is quoted, its quotes doubled.
 const csvField = (value: string | number): string => {
   const text = String(value)
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text
@@ -152,7 +152,7 @@ export const giftCsv = (gifts: readonly TikTokGift[]): string =>
     ...gifts.map((gift, index) =>
       [index + 1, gift.giftId, gift.name, gift.coins, gift.imageUrl].map(csvField).join(','),
     ),
-  ].join('\r\n')}\r\n`
+  ].join('\n')}\n`
 
 // Results folder of a fetch: its date in Japan (where the fetches are run), not in UTC.
 export const resultDate = (fetchedAt: string): string =>
