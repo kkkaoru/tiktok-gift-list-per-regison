@@ -58,7 +58,7 @@ const REGION_SECTION: readonly string[] = [
   '| `GET /user-room` | `https://www.tiktok.com/api-live/user/room/`（ユーザー名から配信の room を検索） |',
   '',
   '```',
-  'GET <そのリージョンのゲートウェイ>/gift-list?aid=1988&device_platform=web_pc&app_language=en-US&webcast_language=en-US',
+  'GET <そのリージョンのゲートウェイ>/gift-list?aid=1988&device_platform=web_pc&app_language=ja-JP&webcast_language=ja-JP',
   'x-api-key: <API キー>',
   '```',
   '',
