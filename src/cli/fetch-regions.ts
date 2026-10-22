@@ -38,6 +38,12 @@ interface PanelQuery {
   readonly roomId: string | null
 }
 
+interface AtlasSet {
+  readonly base: RegionPanel
+  readonly regions: readonly RegionPanel[]
+  readonly room: RoomPanel | null
+}
+
 interface Written {
   readonly fetchedAt: string
   readonly folder: string
@@ -54,6 +60,14 @@ const PANEL_COLUMNS: number = 24
 const DIFF_COLUMNS: number = 12
 const USER_AGENT: string =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36'
+
+const baseRegion = (): Region => {
+  const region = REGIONS.find((entry) => entry.label === BASE)
+  if (region === undefined) {
+    throw new Error(`No ${BASE} in src/regions/regions.ts`)
+  }
+  return region
+}
 
 const json = async ({ apiKey, endpoint }: Gateway, url: string): Promise<unknown> => {
   const response = await fetch(gatewayUrl(endpoint, url), {
@@ -117,8 +131,11 @@ const roomPanel = async (input: string, gateway: Gateway): Promise<RoomPanel> =>
     throw new Error('Usage: bun src/cli/fetch-regions.ts [@user | live URL | room id]')
   }
   const roomId = await roomIdFor(source, gateway)
-  const language = REGIONS.find((region) => region.label === BASE)?.language ?? BASE
-  return { gifts: await panel({ gateway, language, roomId }), roomId, source: input }
+  return {
+    gifts: await panel({ gateway, language: baseRegion().language, roomId }),
+    roomId,
+    source: input,
+  }
 }
 
 const regionAtlases = (base: RegionPanel, panel: RegionPanel): readonly AtlasFile[] => {
@@ -143,25 +160,23 @@ const roomAtlases = (base: RegionPanel, room: RoomPanel | null): readonly AtlasF
 }
 
 // Every atlas of the report, with paths relative to the results folder.
-const atlases = (regions: readonly RegionPanel[], room: RoomPanel | null): readonly AtlasFile[] => {
-  const base = regions.find((panel) => panel.label === BASE)
-  return base === undefined
-    ? []
-    : [...regions.flatMap((panel) => regionAtlases(base, panel)), ...roomAtlases(base, room)]
-}
+const atlases = ({ base, regions, room }: AtlasSet): readonly AtlasFile[] => [
+  ...regions.flatMap((panel) => regionAtlases(base, panel)),
+  ...roomAtlases(base, room),
+]
 
-const writeImages = async (
-  folder: string,
-  regions: readonly RegionPanel[],
-  room: RoomPanel | null,
-): Promise<void> => {
-  const files = atlases(regions, room).map((file) => ({ ...file, path: join(folder, file.path) }))
+const writeImages = async (folder: string, set: AtlasSet): Promise<void> => {
+  const files = atlases(set).map((file) => ({ ...file, path: join(folder, file.path) }))
   await initCodecs()
   const images = await loadImages(files.flatMap((file) => file.gifts.map((gift) => gift.imageUrl)))
   await writeAtlases(files, images)
 }
 
 const write = async ({ fetchedAt, folder, regions, room }: Written): Promise<void> => {
+  const base = regions.find((panel) => panel.label === BASE)
+  if (base === undefined) {
+    throw new Error(`No panel for the base region ${BASE}`)
+  }
   await Promise.all(
     ['regions', 'rooms', 'images'].map((sub) => mkdir(join(folder, sub), { recursive: true })),
   )
@@ -182,7 +197,7 @@ const write = async ({ fetchedAt, folder, regions, room }: Written): Promise<voi
         ]),
     writeFile(join(folder, 'README.md'), reportMarkdown({ base: BASE, fetchedAt, regions, room })),
   ])
-  await writeImages(folder, regions, room)
+  await writeImages(folder, { base, regions, room })
 }
 
 const main = async (input: string | undefined): Promise<void> => {
