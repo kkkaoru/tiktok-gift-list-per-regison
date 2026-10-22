@@ -41,7 +41,7 @@ test('reports every region against the base region by giftId', () => {
       '# TikTok LIVE のギフト欄（地域別）',
       '',
       '取得 2026-10-22T10:00:00Z。各地域のギフト欄は、その AWS リージョンの API Gateway から配信を指定せずに取得した一覧（TikTok は接続元の IP で地域を決める）。',
-      'ギフト名はその地域の言語で、比較は giftId で JP を基準にしています。画像は表の順（左上から右へ、行ごと）。',
+      'ギフト名はその地域の言語で、比較は giftId で JP を基準にしています。画像はリスト（表・JSON）と同じ順（左上から右へ、行ごと）。',
       '',
       '## 概要',
       '',
