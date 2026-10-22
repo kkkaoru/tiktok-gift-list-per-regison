@@ -76,6 +76,15 @@ test('reports every region against the base region by giftId', () => {
       '- `region` などの地域パラメーターは無視されます。地域は API Gateway のリージョンで切り替えています',
       '- 各地域で使う言語コードは `src/regions/regions.ts` の `language` で変更できます（上の概要の「言語」列）',
       '',
+      '## JP のギフト一覧（ap-northeast-1、ja-JP）: 2 種類',
+      '',
+      '![JP のギフト一覧](images/JP.png)',
+      '',
+      '| # | giftId | 名前 | コイン |',
+      '| ---: | ---: | --- | ---: |',
+      '| 1 | 5655 | バラ | 1 |',
+      '| 2 | 7 | ハート | 5 |',
+      '',
       '## JP との差分',
       '',
       '### US（us-east-1、en-US）',
@@ -105,7 +114,7 @@ test('adds the live of the base region', () => {
       room: { gifts: [rose, heart, own], roomId: '77', source: '@cassismilk02' },
     })
       .split('\n')
-      .slice(45),
+      .slice(54),
   ).toStrictEqual([
     '## 配信 @cassismilk02（JP、room 77）',
     '',
