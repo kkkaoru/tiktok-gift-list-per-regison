@@ -1,18 +1,18 @@
 // Runs with bun.
 // Fetches each region's own TikTok LIVE gift panel (no stream, gift names in the region's
 // language) through the API Gateway of that region, and optionally one live's panel in JP
-// (src/cli/deploy.sh writes .relay/outputs.json and .relay/api-key). Writes results/<date>/:
+// (src/cli/deploy.sh writes .relay/outputs.json and .relay/api-key). Writes results/<date in Japan>/ (rebuilt each run):
 //   regions/<REGION>.json  the region's gift panel (giftId, name, coins, image URL, panel order)
 //   rooms/<user>.json      the live's gift panel in JP (only with a live given)
 //   images/*.png           atlases of each panel and of the gifts each region has that JP lacks
 //   README.md              the comparison against JP (by giftId)
 //   bun src/cli/fetch-regions.ts [@user | live URL | room id]
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { parseEndpoints, REGIONS } from '../regions/regions'
 import type { Region } from '../regions/regions'
-import { atlasPaths, reportMarkdown, roomAtlasPath, roomName } from '../report/report'
+import { atlasPaths, reportMarkdown, resultDate, roomAtlasPath, roomName } from '../report/report'
 import type { RegionPanel, RoomPanel } from '../report/report'
 import {
   gatewayUrl,
@@ -172,11 +172,14 @@ const writeImages = async (folder: string, set: AtlasSet): Promise<void> => {
   await writeAtlases(files, images)
 }
 
+// The folder is rebuilt: a second fetch the same day must not leave the first one's files
+// (e.g. a live's JSON and images, or a diff image now empty) next to the new report.
 const write = async ({ fetchedAt, folder, regions, room }: Written): Promise<void> => {
   const base = regions.find((panel) => panel.label === BASE)
   if (base === undefined) {
     throw new Error(`No panel for the base region ${BASE}`)
   }
+  await rm(folder, { force: true, recursive: true })
   await Promise.all(
     ['regions', 'rooms', 'images'].map((sub) => mkdir(join(folder, sub), { recursive: true })),
   )
@@ -207,7 +210,7 @@ const main = async (input: string | undefined): Promise<void> => {
     input === undefined ? null : roomPanel(input, gatewayOf(all, BASE)),
   ])
   const fetchedAt = new Date().toISOString()
-  await write({ fetchedAt, folder: join(ROOT, 'results', fetchedAt.slice(0, 10)), regions, room })
+  await write({ fetchedAt, folder: join(ROOT, 'results', resultDate(fetchedAt)), regions, room })
   console.info(
     JSON.stringify({
       regions: Object.fromEntries(regions.map((panel) => [panel.label, panel.gifts.length])),

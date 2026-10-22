@@ -91,6 +91,10 @@ const LANGUAGE_SECTION: readonly string[] = [
 export const tableCell = (text: string): string =>
   text.replaceAll(/\s+/gu, ' ').trim().replaceAll('|', '\\|')
 
+// Results folder of a fetch: its date in Japan (where the fetches are run), not in UTC.
+export const resultDate = (fetchedAt: string): string =>
+  new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date(fetchedAt))
+
 // Folded on GitHub (<details>); the blank lines let the table render inside it.
 const giftTable = (gifts: readonly TikTokGift[]): readonly string[] => [
   '<details>',
