@@ -1,0 +1,27 @@
+{
+  "name": "tiktok-gift-list-per-region",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fetch": "bun src/cli/fetch-regions.ts",
+    "deploy": "bash src/cli/deploy.sh",
+    "tsc": "tsc -p tsconfig.json",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "destroy": "bash src/cli/deploy.sh --delete",
+    "synth": "CDK_DEFAULT_ACCOUNT=000000000000 bunx cdk synth -c apiKey=synth-only-placeholder-key"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "@vitest/coverage-v8": "5.0.1",
+    "aws-cdk": "2.178.2",
+    "aws-cdk-lib": "2.178.2",
+    "constructs": "10.4.2",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}
