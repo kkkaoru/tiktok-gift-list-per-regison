@@ -44,6 +44,18 @@ test('reports every region against the base region by giftId', () => {
       '| US | us-east-1 | en-US | 2 | 1 | 1 | [一覧](images/US.png) |',
       '| GB | us-east-1 | en-GB | 2 | 2 | 0 | [一覧](images/GB.png) |',
       '',
+      '## ギフト名の言語',
+      '',
+      'ギフト一覧 API（`https://webcast.tiktok.com/webcast/gift/list/`）のクエリ `app_language` と `webcast_language` に言語コード（`ja-JP`・`en-US`・`en-GB`・`zh-Hans` など）を指定すると、`name` がその言語で返ります。',
+      '',
+      '```',
+      'https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=en-US&webcast_language=en-US',
+      '```',
+      '',
+      '- どのギフトが並ぶかは言語ではなく接続元の IP（地域）で決まります。言語コードを変えても giftId の集合は変わらず、名前だけが変わります',
+      '- `region` などの地域パラメーターは無視されます。地域は API Gateway のリージョンで切り替えています',
+      '- 各地域で使う言語コードは `src/regions/regions.ts` の `language` で変更できます（上の概要の「言語」列）',
+      '',
       '## JP との差分',
       '',
       '### US（us-east-1、en-US）',
@@ -73,7 +85,7 @@ test('adds the live of the base region', () => {
       room: { gifts: [rose, heart, own], roomId: '77', source: '@cassismilk02' },
     })
       .split('\n')
-      .slice(13),
+      .slice(25),
   ).toStrictEqual([
     '## 配信 @cassismilk02（JP、room 77）',
     '',

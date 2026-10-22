@@ -12,6 +12,18 @@
 | GB | eu-west-2 | en-GB | 765 | 598 | 167 | [一覧](images/GB.png) |
 | SG | ap-southeast-1 | en-SG | 652 | 599 | 53 | [一覧](images/SG.png) |
 
+## ギフト名の言語
+
+ギフト一覧 API（`https://webcast.tiktok.com/webcast/gift/list/`）のクエリ `app_language` と `webcast_language` に言語コード（`ja-JP`・`en-US`・`en-GB`・`zh-Hans` など）を指定すると、`name` がその言語で返ります。
+
+```
+https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&app_language=en-US&webcast_language=en-US
+```
+
+- どのギフトが並ぶかは言語ではなく接続元の IP（地域）で決まります。言語コードを変えても giftId の集合は変わらず、名前だけが変わります
+- `region` などの地域パラメーターは無視されます。地域は API Gateway のリージョンで切り替えています
+- 各地域で使う言語コードは `src/regions/regions.ts` の `language` で変更できます（上の概要の「言語」列）
+
 ## JP との差分
 
 ### US（us-east-1、en-US）
