@@ -12,6 +12,26 @@
 | GB | eu-west-2 | en-GB | 765 | 598 | 167 | [一覧](images/GB.png) |
 | SG | ap-southeast-1 | en-SG | 652 | 599 | 53 | [一覧](images/SG.png) |
 
+## 地域（IP）ごとの取得方法
+
+TikTok はギフト欄の地域を接続元の IP で決めます。そこで AWS の各リージョンに API Gateway（REST API、リージョナル、HTTP プロキシ統合）を 1 つずつ置き、そのリージョンの AWS の IP から TikTok に問い合わせています。
+
+| ゲートウェイのパス | 転送先 |
+| --- | --- |
+| `GET /gift-list` | `https://webcast.tiktok.com/webcast/gift/list/`（ギフト一覧） |
+| `GET /user-room` | `https://www.tiktok.com/api-live/user/room/`（ユーザー名から配信の room を検索） |
+
+```
+GET <そのリージョンのゲートウェイ>/gift-list?aid=1988&device_platform=web_pc&app_language=en-US&webcast_language=en-US
+x-api-key: <API キー>
+```
+
+- クエリ文字列とヘッダー（User-Agent など）はそのまま TikTok に転送されます。`room_id` を付けなければ、その地域の既定のギフト欄になります
+- 呼び出しには API キーが必須で、利用量プランで 5 リクエスト/秒・1 日 1000 リクエストに制限しています。ゲートウェイの URL と API キーは公開していません
+- 転送先は上の 2 つの URL に固定しています（`{proxy+}` で転送すると API Gateway が末尾の `/` を落とし、TikTok が 301 を返すため）
+- 構築は AWS CDK（`src/cdk/`）で、`AWS_PROFILE=<プロファイル> bun run deploy` で全リージョンにデプロイ、`bun run fetch [@ユーザー名]` で取得します（手順はリポジトリの README）
+- ギフト画像は画像 CDN から直接取得しています（画像は地域で変わらないため）
+
 ## ギフト名の言語
 
 ギフト一覧 API（`https://webcast.tiktok.com/webcast/gift/list/`）のクエリ `app_language` と `webcast_language` に言語コード（`ja-JP`・`en-US`・`en-GB`・`zh-Hans` など）を指定すると、`name` がその言語で返ります。
