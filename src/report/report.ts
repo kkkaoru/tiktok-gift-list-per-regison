@@ -86,6 +86,11 @@ const LANGUAGE_SECTION: readonly string[] = [
   '',
 ]
 
+// A table cell: TikTok names can carry line breaks, non-breaking spaces or a pipe, which would
+// split the row (the JSON keeps the name as sent).
+export const tableCell = (text: string): string =>
+  text.replaceAll(/\s+/gu, ' ').trim().replaceAll('|', '\\|')
+
 // Folded on GitHub (<details>); the blank lines let the table render inside it.
 const giftTable = (gifts: readonly TikTokGift[]): readonly string[] => [
   '<details>',
@@ -93,7 +98,9 @@ const giftTable = (gifts: readonly TikTokGift[]): readonly string[] => [
   '',
   '| # | giftId | 名前 | コイン |',
   '| ---: | ---: | --- | ---: |',
-  ...gifts.map((gift, index) => `| ${index + 1} | ${gift.giftId} | ${gift.name} | ${gift.coins} |`),
+  ...gifts.map(
+    (gift, index) => `| ${index + 1} | ${gift.giftId} | ${tableCell(gift.name)} | ${gift.coins} |`,
+  ),
   '',
   '</details>',
 ]

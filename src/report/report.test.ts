@@ -1,7 +1,7 @@
 // Runs with bun.
 import { expect, test } from 'vitest'
 
-import { atlasPaths, reportMarkdown, roomAtlasPath, roomName } from './report'
+import { atlasPaths, reportMarkdown, roomAtlasPath, roomName, tableCell } from './report'
 
 const rose = { coins: 1, giftId: '5655', imageUrl: 'https://a/rose.webp', name: 'バラ' }
 const roseEn = { coins: 1, giftId: '5655', imageUrl: 'https://a/rose.webp', name: 'Rose' }
@@ -142,4 +142,10 @@ test('needs the base region', () => {
   expect(() => reportMarkdown({ base: 'JP', fetchedAt: 'x', regions: [], room: null })).toThrow(
     'No panel for the base region JP',
   )
+})
+
+test('keeps a table row on one line whatever the name holds', () => {
+  expect(tableCell('Gold Boxing Gloves\n')).toBe('Gold Boxing Gloves')
+  expect(tableCell('\u00a0Let butterfly dances\u00a0')).toBe('Let butterfly dances')
+  expect(tableCell('A | B')).toBe('A \\| B')
 })
