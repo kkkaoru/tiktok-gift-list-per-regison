@@ -1,17 +1,19 @@
 // Runs with bun.
-// Fetches the gift panel of one TikTok live through the API Gateway of every region
-// (src/cli/deploy.sh writes .relay/outputs.json and .relay/api-key) and writes
-// results/<date>/<user or room>/:
-//   <REGION>.json  the panel inside the room and the region's default panel (giftId, name, coins,
-//                  image URL, in panel order)
-//   README.md      the comparison against JP
-//   bun src/cli/fetch-regions.ts <@user | live URL | room id>
+// Fetches each region's own TikTok LIVE gift panel (no stream, gift names in the region's
+// language) through the API Gateway of that region, and optionally one live's panel in JP
+// (src/cli/deploy.sh writes .relay/outputs.json and .relay/api-key). Writes results/<date>/:
+//   regions/<REGION>.json  the region's gift panel (giftId, name, coins, image URL, panel order)
+//   rooms/<user>.json      the live's gift panel in JP (only with a live given)
+//   images/*.png           atlases of each panel and of the gifts each region adds / lacks
+//   README.md              the comparison against JP (by giftId)
+//   bun src/cli/fetch-regions.ts [@user | live URL | room id]
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { parseEndpoints, REGIONS } from '../regions/regions'
-import { reportMarkdown } from '../report/report'
-import type { RegionPanels } from '../report/report'
+import type { Region } from '../regions/regions'
+import { atlasPaths, reportMarkdown, roomAtlasPath, roomName } from '../report/report'
+import type { RegionPanel, RoomPanel } from '../report/report'
 import {
   gatewayUrl,
   giftListUrl,
@@ -20,25 +22,36 @@ import {
   roomIdOf,
   roomLookupUrl,
 } from '../tiktok/tiktok'
-import type { TikTokSource } from '../tiktok/tiktok'
+import { diffPanels } from '../tiktok/tiktok'
+import type { TikTokGift, TikTokSource } from '../tiktok/tiktok'
+import { initCodecs, loadImages, writeAtlases } from './images'
+import type { AtlasFile } from './images'
 
 interface Gateway {
   readonly apiKey: string
   readonly endpoint: string
 }
 
-interface RegionFetch {
+interface PanelQuery {
   readonly gateway: Gateway
-  readonly label: string
-  readonly roomId: string
+  readonly language: string
+  readonly roomId: string | null
+}
+
+interface Written {
+  readonly fetchedAt: string
+  readonly folder: string
+  readonly regions: readonly RegionPanel[]
+  readonly room: RoomPanel | null
 }
 
 const ROOT: string = join(import.meta.dir, '../..')
 const OUTPUTS: string = join(ROOT, '.relay/outputs.json')
 const API_KEY: string = join(ROOT, '.relay/api-key')
 const BASE: string = 'JP'
-// Gift names in Japanese; the gift set itself follows the region of the gateway's IP.
-const LANGUAGE: string = 'ja-JP'
+// Atlas columns: whole panels, and the (shorter) differences.
+const PANEL_COLUMNS: number = 24
+const DIFF_COLUMNS: number = 12
 const USER_AGENT: string =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36'
 
@@ -52,7 +65,41 @@ const json = async ({ apiKey, endpoint }: Gateway, url: string): Promise<unknown
   return response.json()
 }
 
-const roomOf = async (source: TikTokSource, gateway: Gateway): Promise<string> => {
+const panel = async ({ gateway, language, roomId }: PanelQuery): Promise<readonly TikTokGift[]> =>
+  panelGifts(await json(gateway, giftListUrl({ language, roomId })))
+
+const gatewayOf = (gateways: ReadonlyMap<string, Gateway>, label: string): Gateway => {
+  const gateway = gateways.get(label)
+  if (gateway === undefined) {
+    throw new Error(`No ${label} gateway; run src/cli/deploy.sh first.`)
+  }
+  return gateway
+}
+
+const gateways = async (): Promise<ReadonlyMap<string, Gateway>> => {
+  const [outputs, apiKey] = await Promise.all([
+    readFile(OUTPUTS, 'utf8'),
+    readFile(API_KEY, 'utf8'),
+  ])
+  return new Map(
+    [...parseEndpoints(JSON.parse(outputs))].map(([label, endpoint]) => [
+      label,
+      { apiKey: apiKey.trim(), endpoint },
+    ]),
+  )
+}
+
+const regionPanel = async (
+  all: ReadonlyMap<string, Gateway>,
+  { awsRegion, label, language }: Region,
+): Promise<RegionPanel> => ({
+  awsRegion,
+  gifts: await panel({ gateway: gatewayOf(all, label), language, roomId: null }),
+  label,
+  language,
+})
+
+const roomIdFor = async (source: TikTokSource, gateway: Gateway): Promise<string> => {
   const roomId =
     'roomId' in source
       ? source.roomId
@@ -63,67 +110,96 @@ const roomOf = async (source: TikTokSource, gateway: Gateway): Promise<string> =
   return roomId
 }
 
-const panelsOf = async ({ gateway, label, roomId }: RegionFetch): Promise<RegionPanels> => {
-  const [room, region] = await Promise.all(
-    [roomId, null].map(async (id) =>
-      panelGifts(await json(gateway, giftListUrl({ language: LANGUAGE, roomId: id }))),
-    ),
-  )
-  return { label, region: region ?? [], room: room ?? [] }
+// The live's panel in the base region (its own gifts plus the region's).
+const roomPanel = async (input: string, gateway: Gateway): Promise<RoomPanel> => {
+  const source = parseTikTokSource(input)
+  if (source === null) {
+    throw new Error('Usage: bun src/cli/fetch-regions.ts [@user | live URL | room id]')
+  }
+  const roomId = await roomIdFor(source, gateway)
+  const language = REGIONS.find((region) => region.label === BASE)?.language ?? BASE
+  return { gifts: await panel({ gateway, language, roomId }), roomId, source: input }
 }
 
-const folderName = (source: TikTokSource): string =>
-  'roomId' in source ? `room-${source.roomId}` : source.uniqueId
+const regionAtlases = (base: RegionPanel, panel: RegionPanel): readonly AtlasFile[] => {
+  const { added, removed } = diffPanels(base.gifts, panel.gifts)
+  const paths = atlasPaths(panel.label)
+  return [
+    { columns: PANEL_COLUMNS, gifts: panel.gifts, path: paths.all },
+    { columns: DIFF_COLUMNS, gifts: added, path: paths.added },
+    { columns: DIFF_COLUMNS, gifts: removed, path: paths.removed },
+  ]
+}
 
-const gateways = async (): Promise<ReadonlyMap<string, Gateway>> => {
-  const [outputs, apiKey] = await Promise.all([
-    readFile(OUTPUTS, 'utf8'),
-    readFile(API_KEY, 'utf8'),
-  ])
-  const endpoints = parseEndpoints(JSON.parse(outputs))
-  if (endpoints.size !== REGIONS.length) {
-    throw new Error('Not every region has a gateway; run src/cli/deploy.sh first.')
+const roomAtlases = (base: RegionPanel, room: RoomPanel | null): readonly AtlasFile[] => {
+  if (room === null) {
+    return []
   }
-  return new Map(
-    [...endpoints].map(([label, endpoint]) => [label, { apiKey: apiKey.trim(), endpoint }]),
+  const { added, removed } = diffPanels(base.gifts, room.gifts)
+  const name = roomName(room)
+  return [
+    { columns: PANEL_COLUMNS, gifts: room.gifts, path: roomAtlasPath(name) },
+    { columns: DIFF_COLUMNS, gifts: added, path: roomAtlasPath(`${name}-added`) },
+    { columns: DIFF_COLUMNS, gifts: removed, path: roomAtlasPath(`${name}-removed`) },
+  ]
+}
+
+// Every atlas of the report, with paths relative to the results folder.
+const atlases = (regions: readonly RegionPanel[], room: RoomPanel | null): readonly AtlasFile[] => {
+  const base = regions.find((panel) => panel.label === BASE)
+  return base === undefined
+    ? []
+    : [...regions.flatMap((panel) => regionAtlases(base, panel)), ...roomAtlases(base, room)]
+}
+
+const writeImages = async (
+  folder: string,
+  regions: readonly RegionPanel[],
+  room: RoomPanel | null,
+): Promise<void> => {
+  const files = atlases(regions, room).map((file) => ({ ...file, path: join(folder, file.path) }))
+  await initCodecs()
+  const images = await loadImages(files.flatMap((file) => file.gifts.map((gift) => gift.imageUrl)))
+  await writeAtlases(files, images)
+}
+
+const write = async ({ fetchedAt, folder, regions, room }: Written): Promise<void> => {
+  await Promise.all(
+    ['regions', 'rooms', 'images'].map((sub) => mkdir(join(folder, sub), { recursive: true })),
   )
+  await Promise.all([
+    ...regions.map((panel) =>
+      writeFile(
+        join(folder, 'regions', `${panel.label}.json`),
+        `${JSON.stringify({ fetchedAt, ...panel }, null, 2)}\n`,
+      ),
+    ),
+    ...(room === null
+      ? []
+      : [
+          writeFile(
+            join(folder, 'rooms', `${roomName(room)}.json`),
+            `${JSON.stringify({ fetchedAt, label: BASE, ...room }, null, 2)}\n`,
+          ),
+        ]),
+    writeFile(join(folder, 'README.md'), reportMarkdown({ base: BASE, fetchedAt, regions, room })),
+  ])
+  await writeImages(folder, regions, room)
 }
 
 const main = async (input: string | undefined): Promise<void> => {
-  const source = parseTikTokSource(input ?? '')
-  if (source === null || input === undefined) {
-    throw new Error('Usage: bun src/cli/fetch-regions.ts <@user | live URL | room id>')
-  }
   const all = await gateways()
-  const base = all.get(BASE)
-  if (base === undefined) {
-    throw new Error(`No ${BASE} gateway`)
-  }
-  const roomId = await roomOf(source, base)
-  const panels = await Promise.all(
-    [...all].map(([label, gateway]) => panelsOf({ gateway, label, roomId })),
-  )
-  const fetchedAt = new Date().toISOString()
-  const folder = join(ROOT, 'results', fetchedAt.slice(0, 10), folderName(source))
-  await mkdir(folder, { recursive: true })
-  await Promise.all([
-    ...panels.map((panel) =>
-      writeFile(
-        join(folder, `${panel.label}.json`),
-        `${JSON.stringify({ fetchedAt, ...panel, roomId }, null, 2)}\n`,
-      ),
-    ),
-    writeFile(
-      join(folder, 'README.md'),
-      reportMarkdown({ base: BASE, fetchedAt, panels, roomId, source: input }),
-    ),
+  const [regions, room] = await Promise.all([
+    Promise.all(REGIONS.map((region) => regionPanel(all, region))),
+    input === undefined ? null : roomPanel(input, gatewayOf(all, BASE)),
   ])
+  const fetchedAt = new Date().toISOString()
+  await write({ fetchedAt, folder: join(ROOT, 'results', fetchedAt.slice(0, 10)), regions, room })
   console.info(
-    JSON.stringify(
-      Object.fromEntries(
-        panels.map((panel) => [panel.label, [panel.room.length, panel.region.length]]),
-      ),
-    ),
+    JSON.stringify({
+      regions: Object.fromEntries(regions.map((panel) => [panel.label, panel.gifts.length])),
+      room: room?.gifts.length ?? null,
+    }),
   )
 }
 

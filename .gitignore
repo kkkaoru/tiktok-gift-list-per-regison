@@ -3,3 +3,4 @@ coverage/
 # Relay token, function URLs and build output (never commit).
 .relay/
 cdk.out/
+.cache/

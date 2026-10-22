@@ -1,16 +1,17 @@
 // Runs with bun.
-// The AWS regions the gift panel is read from (one API Gateway each, see src/cdk/) and how the CDK
-// outputs file maps back to them.
+// The AWS regions the gift panel is read from (one API Gateway each, see src/cdk/), the language
+// of the gift names there, and how the CDK outputs file maps back to them.
 interface Region {
   readonly awsRegion: string
   readonly label: string
+  readonly language: string
 }
 
 export const REGIONS: readonly Region[] = [
-  { awsRegion: 'ap-northeast-1', label: 'JP' },
-  { awsRegion: 'us-east-1', label: 'US' },
-  { awsRegion: 'eu-west-2', label: 'GB' },
-  { awsRegion: 'ap-southeast-1', label: 'SG' },
+  { awsRegion: 'ap-northeast-1', label: 'JP', language: 'ja-JP' },
+  { awsRegion: 'us-east-1', label: 'US', language: 'en-US' },
+  { awsRegion: 'eu-west-2', label: 'GB', language: 'en-GB' },
+  { awsRegion: 'ap-southeast-1', label: 'SG', language: 'en-SG' },
 ]
 const STACK_PREFIX: string = 'TikTokGiftList-'
 const OUTPUT_ENDPOINT: string = 'Endpoint'
