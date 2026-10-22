@@ -1,7 +1,7 @@
 # TikTok LIVE のギフト欄（地域別）
 
-取得 2026-10-22T10:56:12.870Z。各地域のギフト欄は、その AWS リージョンの API Gateway から配信を指定せずに取得した一覧（TikTok は接続元の IP で地域を決める）。
-ギフト名はその地域の言語で、比較は giftId で JP を基準にしています。画像は表の順（左上から右へ、行ごと）。
+取得 2026-10-22T11:06:04.345Z。各地域のギフト欄は、その AWS リージョンの API Gateway から配信を指定せずに取得した一覧（TikTok は接続元の IP で地域を決める）。
+ギフト名はその地域の言語で、比較は giftId で JP を基準にしています。画像はリスト（表・JSON）と同じ順（左上から右へ、行ごと）。
 
 ## 概要
 
@@ -138,13 +138,12 @@ https://webcast.tiktok.com/webcast/gift/list/?aid=1988&device_platform=web_pc&ap
 | 73 | 12516 | Witchy Kitty | 30 |
 | 74 | 1062858 | Gamer Press Start | 25 |
 | 75 | 10612 | Let 'Em Cook | 20 |
-| 76 | 5853 | Gold Boxing Gloves
- | 10 |
+| 76 | 5853 | Gold Boxing Gloves | 10 |
 | 77 | 8692 | Hi Bear | 10 |
 | 78 | 11108 | EWC | 10 |
 | 79 | 12236 | Dolphin | 10 |
 | 80 | 12843 | Pumpkin Pie | 5 |
-| 81 | 6652 | Lightning Bolt  | 1 |
+| 81 | 6652 | Lightning Bolt | 1 |
 | 82 | 6928 | It’s corn | 1 |
 | 83 | 7086 | Chili | 1 |
 | 84 | 9967 | Heart Puff | 1 |
